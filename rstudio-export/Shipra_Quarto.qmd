@@ -1,0 +1,139 @@
+---
+title: "UNICEF INSIGHTS ON GLOBAL DIARRHOEA WORLDWIDE"
+subtitle: "Understanding the Crisis and taking action by exploring the relation between Life Expectancy, GDP, and Diarrhoea Treatment Efficacy"
+author: "SHIPRA KAPRI"
+date: "2024-04-25"
+format:
+  html:
+    backgroundcolor: beige
+    toc: true
+    
+execute: 
+  echo: true
+  warning: false
+  message: false
+---
+```{r}
+#| label: setup
+#| include: false
+
+#Libraries
+library(tidyverse)
+library(plotly)
+
+# Data
+unicef_indicator_2 <- read_csv("unicef_indicator_2.csv")
+unicef_metadata <- read_csv("unicef_metadata.csv")
+
+# Data Transform
+data_join <- full_join(unicef_indicator_2, unicef_metadata, by = c("country","time_period" = "year"))
+```
+## Introduction
+
+In the quest for better global health, it's crucial to understand how factors like life expectancy and GDP affect healthcare outcomes. UNICEF's data provides a unique opportunity to analyze the effectiveness of diarrhoea treatment worldwide.
+
+This report explores how life expectancy, GDP, and diarrhea treatment are interconnected, aiming to provide insights for targeted interventions. By examining UNICEF's data, we can better understand how these factors interact, ultimately improving healthcare strategies worldwide.
+
+## Map Showing Countries with Highest Level of Diarrhoea 
+```{r}
+#| fig-cap: "The world map shows the top 30 countries with the highest levels of diarrhoea with a concerning global health issue. The data reveals that a significant number of these countries are situated in Sub-Saharan Africa, South Asia and South American regions. From this, we can identify the areas most in need of targeted interventions and resources."
+# World Map
+map_world <- map_data("world")
+
+# Sorting top 30 country with highest obs_value
+top_30 <- unicef_indicator_2 %>%
+  group_by(country) %>%
+  summarise(obs_value = sum(obs_value)) %>%
+  top_n(30, obs_value)
+
+# Creating map for top 30
+map_data_join_top30 <- full_join(top_30, map_world, by = c("country" = "region"))
+
+ggplot(map_data_join_top30) +
+  aes(x = long, y = lat, group = group, fill = obs_value) +
+  labs(title = "Top 30 Countries with Highest level of Diarrhoea") +
+  scale_fill_continuous(low = "blue", high = "red", na.value = "lightpink", name = "Obs_Value") +
+  geom_polygon()
+```
+## Time Series Showing GDP Per Capita within Various Time Period
+```{r}
+#| fig-cap: "The time series visualization of GDP per capita spanning from 1960 to 2022 shows light on the economic progress and disparities across different regions of the world. These trends highlighting the areas where economic growth has stagnated and others where it has flourished, and how these economic factors correlate with the prevalence of diarrheal diseases."
+# Timeseries plot
+
+# Data
+unicef_metadata <- read.csv("unicef_metadata.csv")
+
+# Filter data for desired Countries 
+filter_data <- unicef_metadata %>%
+  filter(country %in% c( "Algeria", "Bangladesh","India", "Nepal","Thailand", "Zambia"))
+
+ggplot(filter_data, aes(x = year, y = GDP.per.capita..constant.2015.US.., group = country, color = "darkred")) +
+  geom_line() +
+  facet_wrap(~ country, ncol = 3) +
+  ggtitle("Time Series Chart of Observed Value for Country by Time Period") +
+  xlab("Time Period 1960-2022") +
+  ylab("GDP Per Capita (Constant 2015 US$)") +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 14, face = "bold", hjust = 0.5, color = "darkgreen"),
+    panel.background = element_rect(fill = "grey97")
+  )
+```
+## Life Expectancy of Top 10 Countries
+```{r}
+#| fig-cap: "This bargraph having the top countries with the highest mean life expectancy over time provides a significant insight into global health. It is evident that developed countries tend to have higher life expectancies. This pattern highlights the impact of healthcare accessibility and quality of health for developed countries."
+# bar chart
+
+# To clean data 
+clean_data <- unicef_metadata %>%
+  filter(!is.na(Life.expectancy.at.birth..total..years.) & Life.expectancy.at.birth..total..years. >= 0)
+
+# Sorting top 10 countries with higest mean life expectancy
+top_10 <- clean_data %>%
+  group_by(country) %>%
+  summarise(Life.expectancy.at.birth..total..years. = mean(Life.expectancy.at.birth..total..years.)) %>%
+  top_n(10, Life.expectancy.at.birth..total..years.)
+
+bar_chart <- ggplot(top_10, aes(x = reorder(country, Life.expectancy.at.birth..total..years.), y = Life.expectancy.at.birth..total..years.)) +
+  geom_bar(stat = "identity", fill = "maroon") +
+  coord_flip() +
+  labs(title = "Top Countries with the Highest Mean Life Expectancy over Time",
+       x = "Country",
+       y = "Life Expectancy") +
+  theme_bw() +
+  theme(
+    plot.title = element_text(size = 14, face = "bold", hjust = 0.5, color = "darkgreen"),
+    panel.background = element_rect(fill = "grey97")
+  )
+bar_chart
+```
+## Diarrhoea Treatment For Different Population
+```{r}
+#| fig-cap: "The visualisation shows the trends of the population of males, females, and the total population who received diarrhoea treatment in different countries. And also give the situation about the gender-specific distribution of the diarrhoea treatment in various countries."
+
+# Scatter Plot
+# Data
+data_join <- full_join(unicef_indicator_2, unicef_metadata, by = c("country","time_period" = "year"))
+
+# To remove all NA data for obs_value and population along with its corresponding rows
+valid_data <- data_join %>%
+  filter(!is.na(obs_value) & obs_value >= 0)
+
+valid_data <- valid_data %>%
+  filter(!is.na(Population..total) & Population..total >= 0)
+
+# Scatter Plot
+ggplot(valid_data, aes(x = obs_value, y = Population..total, color = sex)) +
+  geom_point() +
+  ggtitle("Scatter Plot for Total Population vs Diarrhoea Treatment") +
+  xlab("Diarrhoea Treatment") +
+  ylab("Total Population") +
+  theme_bw() +
+  theme(
+    plot.title = element_text(size = 14, face = "bold", hjust = 0.5, color = "darkred"),
+    panel.background = element_rect(fill = "lavender"))
+```
+
+
+
+
